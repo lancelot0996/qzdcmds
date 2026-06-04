@@ -1,0 +1,2486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#f2f2f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="耗材管家">
+<title>耗材管家</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/tesseract.min.js"></script>
+<style>
+/* ============================================================
+   Apple 风格设计系统
+   ============================================================ */
+:root {
+  /* iOS 色彩系统 */
+  --bg: #f2f2f7;
+  --bg-elevated: #ffffff;
+  --bg-grouped: #f2f2f7;
+  --separator: #e5e5ea;
+  --separator-opaque: #c6c6c8;
+
+  --label: #1c1c1e;
+  --secondaryLabel: #8e8e93;
+  --tertiaryLabel: #aeaeb2;
+  --quaternaryLabel: #d1d1d6;
+
+  --blue: #007aff;
+  --blue-bg: #e8f2ff;
+  --orange: #ff6b35;
+  --orange-bg: #fff3ed;
+  --green: #34c759;
+  --green-bg: #e8f8ed;
+  --red: #ff3b30;
+  --red-bg: #ffeaea;
+  --yellow: #ff9500;
+  --yellow-bg: #fff5e6;
+
+  /* 圆角 */
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 13px;
+  --r-xl: 16px;
+  --r-full: 9999px;
+
+  /* 间距 */
+  --pad-page: 20px;
+  --pad-card: 16px;
+  --pad-row: 12px;
+
+  /* 阴影（iOS 风格 — 非常微妙） */
+  --shadow-elevated: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  --shadow-modal: 0 -2px 20px rgba(0,0,0,0.12);
+
+  /* 尺寸 */
+  --tab-height: 84px;
+  --header-offset: 0px;
+
+  /* 动效 */
+  --spring: cubic-bezier(0.35, 1.2, 0.65, 1);
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+* { margin:0;padding:0;box-sizing:border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", "PingFang SC", sans-serif;
+  background: var(--bg);
+  color: var(--label);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   头部 — 大标题风格
+   ============================================================ */
+.app-header {
+  background: var(--bg);
+  padding: 12px var(--pad-page) 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  z-index: 100;
+}
+.header-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--label);
+}
+.header-title.small { font-size: 17px; font-weight: 600; }
+.header-btn {
+  width: 36px; height: 36px;
+  border-radius: var(--r-full);
+  border: none;
+  background: var(--bg-elevated);
+  font-size: 17px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-elevated);
+  color: var(--label);
+  transition: 0.15s var(--ease);
+}
+.header-btn:active { background: #e5e5ea; transform: scale(0.94); }
+
+/* ============================================================
+   主内容区
+   ============================================================ */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 var(--pad-page);
+  padding-bottom: calc(var(--tab-height) + 8px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.page { display: none; padding-top: 4px; }
+.page.active { display: block; animation: pageIn 0.28s var(--ease); }
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   通用组件 — Apple 风格
+   ============================================================ */
+
+/* 圆角白卡片 */
+.card {
+  background: var(--bg-elevated);
+  border-radius: var(--r-lg);
+  padding: var(--pad-card);
+  margin-bottom: 12px;
+}
+.card:active { background: #f5f5f7; }
+
+/* 统计卡片 */
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--bg-elevated);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+}
+.stat-card .sc-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+.stat-card .sc-value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.stat-card .sc-label {
+  font-size: 13px;
+  color: var(--secondaryLabel);
+  margin-top: 2px;
+}
+
+/* 分段控制器（iOS Segmented Control） */
+.segmented-control {
+  display: inline-flex;
+  background: #e5e5ea;
+  border-radius: var(--r-sm);
+  padding: 2px;
+  margin-bottom: 12px;
+}
+.segmented-control .seg-option {
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--label);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: 0.2s var(--ease);
+}
+.segmented-control .seg-option.active {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 1px rgba(0,0,0,0.04);
+  font-weight: 600;
+}
+
+.seg-scroll {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+}
+.seg-scroll::-webkit-scrollbar { display: none; }
+.seg-scroll .seg-chip {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--r-full);
+  border: 1.5px solid #d1d1d6;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--label);
+  cursor: pointer;
+  transition: 0.15s var(--ease);
+}
+.seg-scroll .seg-chip.active {
+  background: var(--label);
+  color: #fff;
+  border-color: var(--label);
+}
+
+/* iOS 风格搜索框 */
+.search-box {
+  display: flex;
+  align-items: center;
+  background: #e5e5ea;
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.search-box .search-icon { font-size: 15px; color: var(--secondaryLabel); }
+.search-box input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--label);
+  outline: none;
+}
+.search-box input::placeholder { color: var(--tertiaryLabel); }
+
+/* ============================================================
+   耗材卡片网格 — 干净的卡片风格
+   ============================================================ */
+.filament-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 10px;
+}
+.filament-card {
+  background: var(--bg-elevated);
+  border-radius: var(--r-lg);
+  padding: 14px;
+  cursor: pointer;
+  transition: 0.15s var(--ease);
+  position: relative;
+  overflow: hidden;
+}
+.filament-card:active { transform: scale(0.97); background: #f5f5f7; }
+.filament-card .fc-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.filament-card .fc-swatch {
+  width: 28px; height: 28px;
+  border-radius: var(--r-full);
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+}
+.filament-card .fc-material {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--secondaryLabel);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.filament-card .fc-brand {
+  font-size: 11px;
+  color: var(--secondaryLabel);
+  margin-bottom: 2px;
+}
+.filament-card .fc-color {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.filament-card .fc-progress {
+  margin-top: 10px;
+  height: 3px;
+  background: #e5e5ea;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.fc-progress .fc-fill { height: 100%; border-radius: 2px; }
+.fc-fill.good { background: var(--green); }
+.fc-fill.warn { background: var(--yellow); }
+.fc-fill.low { background: var(--red); }
+
+.filament-card .fc-status {
+  font-size: 11px;
+  color: var(--secondaryLabel);
+  margin-top: 6px;
+}
+.filament-card .fc-status .dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.dot.in-use { background: var(--green); }
+.dot.unopened { background: var(--blue); }
+.dot.need-dry { background: var(--yellow); }
+.dot.finished { background: var(--tertiaryLabel); }
+
+/* ============================================================
+   按钮 — Apple 风格
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: var(--r-md);
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: 0.15s var(--ease);
+}
+.btn:active { transform: scale(0.96); opacity: 0.8; }
+.btn-primary { background: var(--label); color: #fff; }
+.btn-secondary { background: #e5e5ea; color: var(--label); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-ghost { background: transparent; color: var(--blue); padding: 8px 0; font-weight: 500; }
+.btn-sm { padding: 7px 14px; font-size: 13px; border-radius: var(--r-sm); }
+.btn-block { width: 100%; justify-content: center; }
+
+/* FAB */
+.fab {
+  position: fixed;
+  bottom: calc(var(--tab-height) + 12px + env(safe-area-inset-bottom, 0px));
+  right: var(--pad-page);
+  width: 52px; height: 52px;
+  border-radius: var(--r-full);
+  background: var(--label);
+  color: #fff;
+  border: none;
+  font-size: 26px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s var(--spring);
+}
+.fab:active { transform: scale(0.88); background: #2c2c2e; }
+
+/* ============================================================
+   底部导航 — iOS 风格
+   ============================================================ */
+.tab-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--tab-height);
+  background: rgba(249,249,249,0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--separator);
+  display: flex;
+  align-items: flex-start;
+  padding-top: 8px;
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: var(--secondaryLabel);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+  transition: 0.15s var(--ease);
+  padding: 0;
+}
+.tab-item .tab-icon { font-size: 22px; }
+.tab-item.active { color: var(--blue); }
+.tab-badge {
+  position: absolute;
+  top: 0;
+  right: calc(50% - 22px);
+  background: var(--red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--r-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+
+/* ============================================================
+   模态框 — iOS Action Sheet 风格
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.22s var(--ease);
+}
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+.modal-sheet {
+  background: #f2f2f7;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  width: 100%;
+  max-width: 500px;
+  max-height: 88vh;
+  max-height: 88dvh;
+  overflow-y: auto;
+  animation: sheetUp 0.32s var(--spring);
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.modal-handle {
+  width: 32px; height: 4px;
+  background: #d1d1d6;
+  border-radius: 2px;
+  margin: 10px auto 8px;
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+  padding: 4px 16px 12px;
+  color: var(--label);
+}
+
+/* 表单组 — iOS 风格分组 */
+.form-group-inset {
+  background: var(--bg-elevated);
+  border-radius: var(--r-lg);
+  margin: 0 16px 16px;
+  overflow: hidden;
+}
+.form-row-inset {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  min-height: 44px;
+}
+.form-row-inset + .form-row-inset { border-top: 1px solid var(--separator); }
+.form-row-inset .f-label {
+  font-size: 15px;
+  color: var(--label);
+  flex-shrink: 0;
+  width: 80px;
+}
+.form-row-inset .f-value {
+  flex: 1;
+  text-align: right;
+  font-size: 15px;
+}
+.form-row-inset input,
+.form-row-inset select {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-family: inherit;
+  text-align: right;
+  color: var(--label);
+  outline: none;
+  padding: 10px 0;
+  direction: rtl;
+}
+.form-row-inset input::placeholder { color: var(--tertiaryLabel); }
+.form-row-inset select { direction: rtl; -webkit-appearance: none; cursor: pointer; }
+
+.form-row-inset .color-dot {
+  width: 24px; height: 24px;
+  border-radius: var(--r-full);
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+/* 表单分段标题 */
+.form-section-title {
+  font-size: 13px;
+  color: var(--secondaryLabel);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 16px;
+  margin: 20px 0 8px;
+}
+.form-section-title:first-child { margin-top: 4px; }
+
+/* ============================================================
+   模板快速选择（快捷添加）
+   ============================================================ */
+.template-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 16px 12px;
+  scrollbar-width: none;
+}
+.template-scroll::-webkit-scrollbar { display: none; }
+.template-chip {
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  border-radius: var(--r-lg);
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 140px;
+  box-shadow: var(--shadow-elevated);
+  transition: 0.15s var(--ease);
+  border: 2px solid transparent;
+}
+.template-chip:active { transform: scale(0.96); }
+.template-chip.selected { border-color: var(--blue); background: var(--blue-bg); }
+.template-chip .tp-swatch {
+  width: 32px; height: 32px;
+  border-radius: var(--r-full);
+  flex-shrink: 0;
+}
+.template-chip .tp-info { min-width: 0; }
+.template-chip .tp-brand { font-size: 11px; color: var(--secondaryLabel); }
+.template-chip .tp-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.template-chip .tp-material {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--secondaryLabel);
+  margin-top: 2px;
+}
+.template-chip .tp-arrow { font-size: 16px; color: var(--blue); opacity: 0; transition: 0.15s; }
+.template-chip.selected .tp-arrow { opacity: 1; }
+
+/* ============================================================
+   详情页
+   ============================================================ */
+.detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.detail-swatch {
+  width: 56px; height: 56px;
+  border-radius: var(--r-full);
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,0.06);
+}
+.detail-hero .dh-brand { font-size: 13px; color: var(--secondaryLabel); }
+.detail-hero .dh-name { font-size: 22px; font-weight: 700; margin: 2px 0; }
+.detail-hero .dh-meta { font-size: 13px; color: var(--secondaryLabel); display: flex; gap: 8px; align-items: center; }
+
+/* 信息行 */
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  font-size: 15px;
+}
+.info-row + .info-row { border-top: 1px solid var(--separator); }
+.info-row .ir-label { color: var(--secondaryLabel); }
+.info-row .ir-value { font-weight: 500; text-align: right; }
+
+/* iOS 风格胶囊标签 */
+.capsule {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.capsule-pla { background: #e8f2ff; color: #0066d6; }
+.capsule-abs { background: #ffe5e5; color: #d63030; }
+.capsule-petg { background: #e0f5e8; color: #1a7a3a; }
+.capsule-tpu { background: #fff3e0; color: #cc7700; }
+.capsule-pc { background: #ede4ff; color: #5b30b0; }
+.capsule-nylon { background: #e8e4f0; color: #5b4880; }
+.capsule-asa { background: #fce4ec; color: #c62828; }
+.capsule-hips { background: #e3f2fd; color: #1565c0; }
+.capsule-pva { background: #f1f8e9; color: #33691e; }
+.capsule-pp { background: #fff8e1; color: #e65100; }
+.capsule-peek { background: #f3e5f5; color: #6a1b9a; }
+.capsule-金属 { background: #eceff1; color: #37474f; }
+.capsule-其他 { background: #f0f0f3; color: #555; }
+
+/* ============================================================
+   时间线
+   ============================================================ */
+.timeline { position: relative; }
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 9px; top: 4px; bottom: 4px;
+  width: 1.5px;
+  background: var(--separator);
+}
+.timeline-item {
+  position: relative;
+  margin-bottom: 10px;
+  padding: 12px 14px 12px 28px;
+  background: var(--bg-elevated);
+  border-radius: var(--r-md);
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 5px; top: 16px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 2px solid #fff;
+}
+.timeline-date { font-size: 12px; color: var(--secondaryLabel); }
+.timeline-body { font-size: 14px; margin-top: 2px; }
+.timeline-model { font-weight: 600; }
+
+/* ============================================================
+   设置页 — iOS 风格分组列表
+   ============================================================ */
+.settings-group {
+  background: var(--bg-elevated);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: 0.1s;
+  font-size: 15px;
+}
+.settings-row:active { background: #f5f5f7; }
+.settings-row + .settings-row { border-top: 1px solid var(--separator); }
+.settings-row .sr-left { display: flex; flex-direction: column; }
+.settings-row .sr-label { font-size: 15px; }
+.settings-row .sr-desc { font-size: 12px; color: var(--secondaryLabel); margin-top: 2px; }
+.settings-row .sr-right { display: flex; align-items: center; gap: 6px; color: var(--secondaryLabel); font-size: 15px; }
+.settings-row .sr-value { font-size: 15px; color: var(--secondaryLabel); }
+.settings-row.danger .sr-label { color: var(--red); }
+
+.settings-footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--secondaryLabel);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.settings-footer .sf-icon { font-size: 36px; margin-bottom: 12px; }
+
+/* ============================================================
+   吐司
+   ============================================================ */
+.toast {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--label);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: var(--r-full);
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 300;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  animation: toastIn 0.3s var(--spring);
+  pointer-events: none;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ============================================================
+   确认对话框
+   ============================================================ */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.38);
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s;
+}
+.confirm-box {
+  background: #f2f2f7;
+  border-radius: var(--r-xl);
+  width: calc(100% - 56px);
+  max-width: 300px;
+  text-align: center;
+  overflow: hidden;
+  animation: scaleIn 0.28s var(--spring);
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.confirm-body { padding: 24px 20px 16px; }
+.confirm-icon { font-size: 44px; margin-bottom: 10px; }
+.confirm-title { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+.confirm-desc { font-size: 13px; color: var(--secondaryLabel); line-height: 1.5; }
+.confirm-actions { border-top: 1px solid var(--separator); display: flex; }
+.confirm-actions button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 14px;
+  font-size: 17px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: 0.1s;
+}
+.confirm-actions button:active { background: #e5e5ea; }
+.confirm-actions button + button { border-left: 1px solid var(--separator); }
+.confirm-actions .ca-cancel { color: var(--blue); font-weight: 500; }
+.confirm-actions .ca-confirm { color: var(--red); font-weight: 600; }
+
+/* ============================================================
+   空状态
+   ============================================================ */
+.empty-state {
+  text-align: center;
+  padding: 40px 16px;
+}
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state .empty-title { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+.empty-state .empty-desc { font-size: 13px; color: var(--secondaryLabel); line-height: 1.5; }
+
+/* ============================================================
+   拍照识别 UI
+   ============================================================ */
+.camera-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.25s;
+}
+.camera-overlay video, .camera-overlay canvas {
+  width: 100%;
+  flex: 1;
+  object-fit: cover;
+}
+.camera-controls {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0));
+  background: rgba(0,0,0,0.9);
+}
+.cam-btn {
+  width: 64px; height: 64px;
+  border-radius: var(--r-full);
+  border: 4px solid #fff;
+  background: transparent;
+  cursor: pointer;
+  transition: 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cam-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
+.cam-btn-inner {
+  width: 48px; height: 48px;
+  border-radius: var(--r-full);
+  background: #fff;
+}
+.cam-btn-close {
+  width: 48px; height: 48px;
+  border-radius: var(--r-full);
+  border: none;
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.camera-preview {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.25s;
+}
+.camera-preview img {
+  flex: 1;
+  object-fit: contain;
+  width: 100%;
+}
+.preview-controls {
+  display: flex;
+  justify-content: space-around;
+  padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0));
+  background: rgba(0,0,0,0.9);
+  gap: 12px;
+}
+.preview-controls .btn { flex: 1; }
+
+/* OCR 处理遮罩 */
+.ocr-loading {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 350;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s;
+}
+.ocr-spinner {
+  width: 40px; height: 40px;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.ocr-text {
+  color: #fff;
+  font-size: 15px;
+  margin-top: 16px;
+  font-weight: 500;
+}
+
+/* 识别结果卡片 */
+.scan-result-card {
+  background: var(--bg-elevated);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+  margin: 0 16px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid var(--green);
+}
+
+/* iPad+ 适配 */
+@media (min-width: 768px) {
+  .main-content { max-width: 640px; margin: 0 auto; }
+  .modal-sheet { border-radius: var(--r-xl); margin-bottom: 20px; }
+  .filament-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<!-- ========== 头部 ========== -->
+<header class="app-header" id="appHeader">
+  <div class="header-title" id="headerTitle" style="display:none;"></div>
+  <div style="display:flex;gap:8px;">
+    <button class="header-btn" id="btnSearch" style="display:none;" title="搜索">🔍</button>
+  </div>
+</header>
+
+<!-- ========== 主内容 ========== -->
+<main class="main-content" id="mainContent">
+
+  <!-- 首页 -->
+  <section class="page active" id="page-home">
+    <div class="header-title" style="margin-bottom:16px;">概览</div>
+    <div class="stats-row" id="statsGrid"></div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:10px;">需要注意</div>
+    <div id="alertList"></div>
+    <div style="font-size:20px;font-weight:700;margin:20px 0 10px;">最近记录</div>
+    <div id="recentLogs"></div>
+  </section>
+
+  <!-- 耗材列表 -->
+  <section class="page" id="page-filaments">
+    <div class="header-title" style="margin-bottom:12px;">耗材</div>
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="搜索">
+    </div>
+    <!-- 材质分段 -->
+    <div class="seg-scroll" id="materialFilters">
+      <button class="seg-chip active" data-material="all">全部</button>
+      <button class="seg-chip" data-material="PLA">PLA</button>
+      <button class="seg-chip" data-material="ABS">ABS</button>
+      <button class="seg-chip" data-material="PETG">PETG</button>
+      <button class="seg-chip" data-material="TPU">TPU</button>
+      <button class="seg-chip" data-material="PC">PC</button>
+      <button class="seg-chip" data-material="尼龙">尼龙</button>
+      <button class="seg-chip" data-material="ASA">ASA</button>
+      <button class="seg-chip" data-material="其他">其他</button>
+    </div>
+    <!-- 状态分段 -->
+    <div class="seg-scroll" id="statusFilters" style="margin-bottom:12px;">
+      <button class="seg-chip active" data-status="all">全部状态</button>
+      <button class="seg-chip" data-status="in_use">使用中</button>
+      <button class="seg-chip" data-status="unopened">未开封</button>
+      <button class="seg-chip" data-status="need_dry">需烘干</button>
+      <button class="seg-chip" data-status="finished">已用完</button>
+    </div>
+    <!-- 排序按钮 -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+      <button class="btn btn-sm btn-secondary" onclick="openSortSheet()">排序▾</button>
+    </div>
+    <div class="filament-grid" id="filamentGrid"></div>
+    <div class="empty-state" id="filamentEmpty" style="display:none;">
+      <div class="empty-icon">🧵</div>
+      <div class="empty-title">还没有耗材</div>
+      <div class="empty-desc">点击右下角的 + 开始添加</div>
+    </div>
+  </section>
+
+  <!-- 使用记录 -->
+  <section class="page" id="page-records">
+    <div class="header-title" style="margin-bottom:16px;">记录</div>
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="recordsSearchInput" placeholder="搜索模型名、耗材品牌...">
+    </div>
+    <div class="timeline" id="recordsTimeline"></div>
+    <div class="empty-state" id="recordsEmpty" style="display:none;">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">还没有记录</div>
+      <div class="empty-desc">在耗材详情中点击"记录使用"</div>
+    </div>
+  </section>
+
+  <!-- 设置 -->
+  <section class="page" id="page-settings">
+    <div class="header-title" style="margin-bottom:16px;">设置</div>
+    <div style="font-size:13px;color:var(--secondaryLabel);text-transform:uppercase;letter-spacing:0.5px;padding:0 4px;margin-bottom:8px;">提醒</div>
+    <div class="settings-group">
+      <div class="settings-row" onclick="editReminderDays()">
+        <div class="sr-left">
+          <div class="sr-label">开封提醒</div>
+          <div class="sr-desc">开封超过此天数提示烘干</div>
+        </div>
+        <div class="sr-right">
+          <span class="sr-value" id="reminderDaysDisplay">30</span> 天
+        </div>
+      </div>
+      <div class="settings-row" onclick="editLowStockThreshold()">
+        <div class="sr-left">
+          <div class="sr-label">低库存提醒</div>
+          <div class="sr-desc">剩余少于此值提示补货</div>
+        </div>
+        <div class="sr-right">
+          <span class="sr-value" id="lowStockDisplay">100</span> 克
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:13px;color:var(--secondaryLabel);text-transform:uppercase;letter-spacing:0.5px;padding:0 4px;margin-bottom:8px;">数据</div>
+    <div class="settings-group">
+      <div class="settings-row" onclick="exportData()">
+        <span>导出数据</span>
+        <div class="sr-right">📤</div>
+      </div>
+      <div class="settings-row" onclick="document.getElementById('importFile').click()">
+        <span>导入数据</span>
+        <div class="sr-right">📥</div>
+      </div>
+      <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+      <div class="settings-row danger" onclick="confirmClearData()">
+        <span class="sr-label">清除所有数据</span>
+        <div class="sr-right" style="color:var(--red);"></div>
+      </div>
+    </div>
+
+    <!-- QQ 群引导 -->
+    <div style="margin-bottom:20px;">
+      <div style="
+        background: linear-gradient(135deg, #e8f2ff 0%, #f0f5ff 100%);
+        border-radius: var(--r-lg);
+        padding: 18px 16px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        cursor: pointer;
+        transition: 0.15s;
+      " onclick="joinQQGroup()">
+        <div style="
+          width: 46px; height: 46px;
+          border-radius: 12px;
+          background: #12b7f5;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 22px;
+          color: #fff;
+          flex-shrink: 0;
+        ">🐧</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:600;">加入耗材交流群</div>
+          <div style="font-size:12px;color:var(--secondaryLabel);margin-top:2px;">获取使用帮助 · 交流打印经验</div>
+          <div style="font-size:13px;color:#12b7f5;font-weight:600;margin-top:4px;" id="qqGroupNum">QQ群 199855171</div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="flex-shrink:0;background:#12b7f5;border-radius:20px;padding:8px 16px;" onclick="event.stopPropagation();joinQQGroup();">加入</button>
+      </div>
+      <div style="display:flex;justify-content:center;margin-top:8px;">
+        <button class="btn btn-ghost" style="font-size:12px;color:var(--secondaryLabel);" onclick="event.stopPropagation();copyQQGroup();">📋 复制群号</button>
+      </div>
+    </div>
+
+    <div class="settings-footer">
+      <div class="sf-icon">🧵</div>
+      <div style="font-weight:600;color:var(--label);font-size:15px;">耗材管家</div>
+      <div>版本 1.0</div>
+      <div style="margin-top:6px;">数据仅保存在本设备中</div>
+    </div>
+  </section>
+
+  <!-- 耗材详情页 -->
+  <section class="page" id="page-detail">
+    <button class="btn btn-ghost" onclick="goBackToFilaments()" style="margin-bottom:12px;padding-left:0;">← 耗材</button>
+    <div id="detailContent"></div>
+  </section>
+</main>
+
+<!-- ========== FAB ========== -->
+<button class="fab" id="fabAdd">+</button>
+
+<!-- ========== 底部导航 ========== -->
+<nav class="tab-bar">
+  <button class="tab-item active" data-tab="home">
+    <span class="tab-icon">🏠</span><span>概览</span>
+  </button>
+  <button class="tab-item" data-tab="filaments">
+    <span class="tab-icon">📦</span><span>耗材</span>
+    <span class="tab-badge" id="filamentCount" style="display:none;">0</span>
+  </button>
+  <button class="tab-item" data-tab="records">
+    <span class="tab-icon">📋</span><span>记录</span>
+  </button>
+  <button class="tab-item" data-tab="settings">
+    <span class="tab-icon">⚙️</span><span>设置</span>
+  </button>
+</nav>
+
+<!-- ========== 弹窗容器 ========== -->
+<div id="modalContainer"></div>
+<div id="toastContainer"></div>
+<div id="confirmContainer"></div>
+
+<script>
+// ============================================================
+// 数据层
+// ============================================================
+const K_FIL = 'fm_filaments';
+const K_SET = 'fm_settings';
+const DEFAULT_SETTINGS = { reminderDays: 30, lowStockGrams: 100 };
+const MATERIALS = [
+  'PLA','PLA+','PLA Silk','PLA Matte','PLA 木质','PLA 大理石','PLA-CF',
+  'ABS','ABS+',
+  'PETG','PETG-CF',
+  'TPU','TPE','TPU 95A','TPU 85A',
+  'PC','PC/ABS合金',
+  'ASA','HIPS','PVA','PP','PCTG',
+  '尼龙','PA6','PA12','PA-CF','PA-GF',
+  'PEI','PEEK','PEKK','PPSU',
+  '金属填充','木质填充',
+  '其他'
+];
+
+function loadFilaments() {
+  try { const r = localStorage.getItem(K_FIL); return r ? JSON.parse(r) : []; }
+  catch(e) { return []; }
+}
+function saveFilaments(arr) { localStorage.setItem(K_FIL, JSON.stringify(arr)); }
+function loadSettings() {
+  try { const r = localStorage.getItem(K_SET); return r ? { ...DEFAULT_SETTINGS, ...JSON.parse(r) } : { ...DEFAULT_SETTINGS }; }
+  catch(e) { return { ...DEFAULT_SETTINGS }; }
+}
+function saveSettings(s) { localStorage.setItem(K_SET, JSON.stringify(s)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function getStatus(f, s) {
+  if (f.remainingWeight <= 0) return 'finished';
+  if (f.openedDate) {
+    const days = Math.floor((Date.now() - new Date(f.openedDate).getTime()) / 86400000);
+    if (days > s.reminderDays) return 'need_dry';
+    return 'in_use';
+  }
+  return 'unopened';
+}
+
+// ============================================================
+// 全局状态
+// ============================================================
+let filaments = loadFilaments();
+let settings = loadSettings();
+let curTab = 'home';
+let matFilter = 'all';
+let statFilter = 'all';
+let searchQuery = '';
+let sortBy = 'newest';
+let viewId = null;
+let editId = null;
+let templateId = null;  // 当前选中的模板耗材 ID
+
+// ============================================================
+// 工具函数
+// ============================================================
+function toast(msg) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg; c.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.25s'; setTimeout(()=>t.remove(),250); }, 1800);
+}
+
+function showConfirm(title, desc, icon, onOk) {
+  const c = document.getElementById('confirmContainer');
+  c.innerHTML = `
+    <div class="confirm-overlay" id="confirmOverlay"><div class="confirm-box">
+      <div class="confirm-body">
+        <div class="confirm-icon">${icon}</div>
+        <div class="confirm-title">${title}</div>
+        <div class="confirm-desc">${desc}</div>
+      </div>
+      <div class="confirm-actions">
+        <button class="ca-cancel" id="confirmCancel">取消</button>
+        <button class="ca-confirm" id="confirmOk">确认</button>
+      </div>
+    </div></div>`;
+  document.getElementById('confirmOverlay').addEventListener('click', function(e){ if(e.target===this) closeConfirm(); });
+  document.getElementById('confirmCancel').addEventListener('click', closeConfirm);
+  document.getElementById('confirmOk').addEventListener('click', () => { closeConfirm(); onOk(); });
+}
+function closeConfirm() { document.getElementById('confirmContainer').innerHTML = ''; }
+
+function showSheet(title, bodyHTML, onSave, saveLabel) {
+  const c = document.getElementById('modalContainer');
+  c.innerHTML = `
+    <div class="modal-overlay" id="modalOverlay"><div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">${title}</div>
+      <div id="modalBody">${bodyHTML}</div>
+      ${onSave ? `<div style="padding:0 16px 16px;display:flex;gap:10px;">
+        <button class="btn btn-secondary btn-block" onclick="closeSheet()">取消</button>
+        <button class="btn btn-primary btn-block" id="sheetSave">${saveLabel || '保存'}</button>
+      </div>` : ''}
+    </div></div>`;
+  document.getElementById('modalOverlay').addEventListener('click', function(e){ if(e.target===this) closeSheet(); });
+  if (onSave) document.getElementById('sheetSave').addEventListener('click', onSave);
+}
+function closeSheet() { document.getElementById('modalContainer').innerHTML = ''; templateId = null; }
+
+function fmtDate(s) {
+  if (!s) return '未记录';
+  const d = new Date(s), n = new Date();
+  const diff = Math.floor((n - d) / 86400000);
+  if (diff === 0) return '今天';
+  if (diff === 1) return '昨天';
+  if (diff < 7) return diff + '天前';
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function capsuleClass(mat) {
+  if (/PLA|Silk|Matte|木质|大理石/i.test(mat)) return 'capsule-pla';
+  if (/ABS/i.test(mat)) return 'capsule-abs';
+  if (/PETG/i.test(mat)) return 'capsule-petg';
+  if (/TPU|TPE/i.test(mat)) return 'capsule-tpu';
+  if (/^PC$/i.test(mat) || /PC\//.test(mat)) return 'capsule-pc';
+  if (/尼龙|PA\d|PA-/i.test(mat)) return 'capsule-nylon';
+  if (/ASA/i.test(mat)) return 'capsule-asa';
+  if (/HIPS/i.test(mat)) return 'capsule-hips';
+  if (/PVA/i.test(mat)) return 'capsule-pva';
+  if (/^PP$/i.test(mat)) return 'capsule-pp';
+  if (/PE[EI]|PPSU/i.test(mat)) return 'capsule-peek';
+  if (/金属/i.test(mat)) return 'capsule-金属';
+  return 'capsule-其他';
+}
+
+// ============================================================
+// 页面切换
+// ============================================================
+function switchTab(tab) {
+  curTab = tab; viewId = null;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
+  const map = { home:'page-home', filaments:'page-filaments', records:'page-records', settings:'page-settings' };
+  const pg = document.getElementById(map[tab]); if (pg) pg.classList.add('active');
+  const tb = document.querySelector(`.tab-item[data-tab="${tab}"]`); if (tb) tb.classList.add('active');
+  const fab = document.getElementById('fabAdd');
+  fab.style.display = (tab==='filaments'||tab==='home') ? 'flex':'none';
+  document.getElementById('btnSearch').style.display = (tab==='filaments')?'flex':'none';
+  document.getElementById('mainContent').scrollTop = 0;
+  // 更新大标题
+  const titles = { home:'概览', filaments:'耗材', records:'记录', settings:'设置' };
+  document.querySelectorAll('.page > .header-title').forEach(el => {
+    // 保持各页自己的标题
+  });
+
+  if (tab==='home') renderHome();
+  if (tab==='filaments') renderFilaments();
+  if (tab==='records') renderRecords();
+  if (tab==='settings') renderSettings();
+}
+
+function showDetail(id) {
+  viewId = id; curTab = 'detail';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-detail').classList.add('active');
+  document.getElementById('fabAdd').style.display = 'none';
+  document.getElementById('btnSearch').style.display = 'none';
+  renderDetail();
+}
+function goBackToFilaments() {
+  switchTab('filaments');
+}
+
+// ============================================================
+// 首页
+// ============================================================
+function renderHome() {
+  filaments = loadFilaments(); settings = loadSettings();
+  const total = filaments.length;
+  const inUse = filaments.filter(f=>getStatus(f,settings)==='in_use').length;
+  const unopened = filaments.filter(f=>getStatus(f,settings)==='unopened').length;
+  const lowStock = filaments.filter(f=>f.remainingWeight>0&&f.remainingWeight<=settings.lowStockGrams).length;
+  const needDry = filaments.filter(f=>getStatus(f,settings)==='need_dry').length;
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card" style="cursor:pointer;" onclick="switchTab('filaments')">
+      <div class="sc-icon">🧵</div>
+      <div class="sc-value">${total}</div>
+      <div class="sc-label">全部耗材</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-icon">🟢</div>
+      <div class="sc-value">${inUse}</div>
+      <div class="sc-label">使用中</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-icon">📦</div>
+      <div class="sc-value">${unopened}</div>
+      <div class="sc-label">未开封</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-icon">⚠️</div>
+      <div class="sc-value">${lowStock + needDry}</div>
+      <div class="sc-label">需关注</div>
+    </div>`;
+
+  // ---- 消耗金额统计 ----
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0]; // 2026-06-04
+  const monthPrefix = todayStr.substring(0, 7);     // 2026-06
+  const yearPrefix = todayStr.substring(0, 4);      // 2026
+
+  let costToday = 0, costMonth = 0, costYear = 0, gramToday = 0, gramMonth = 0, gramYear = 0;
+  filaments.forEach(f => {
+    if (f.usageLogs) {
+      f.usageLogs.forEach(l => {
+        const logCost = l.cost || 0;
+        const logGram = l.consumedWeight || 0;
+        if (l.date === todayStr) { costToday += logCost; gramToday += logGram; }
+        if (l.date && l.date.startsWith(monthPrefix)) { costMonth += logCost; gramMonth += logGram; }
+        if (l.date && l.date.startsWith(yearPrefix)) { costYear += logCost; gramYear += logGram; }
+      });
+    }
+  });
+
+  // 移除旧的消耗统计（避免重复）
+  const oldCost = document.getElementById('costStatsSection');
+  if (oldCost) oldCost.remove();
+
+  const costSection = document.createElement('div');
+  costSection.id = 'costStatsSection';
+  costSection.style.cssText = 'margin-bottom:16px;';
+  costSection.innerHTML = `
+    <div style="background:var(--bg-elevated);border-radius:var(--r-lg);padding:12px 16px;display:flex;align-items:center;gap:12px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;color:var(--secondaryLabel);" id="costPeriodLabel">本月消耗</div>
+        <div style="font-size:26px;font-weight:700;letter-spacing:-0.5px;" id="costAmount">¥${costMonth.toFixed(1)}</div>
+        <div style="font-size:12px;color:var(--secondaryLabel);" id="costGram">${costMonth>0?gramMonth+'g':'暂无记录'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;">
+        <button class="cost-period-btn" id="costBtnToday" onclick="switchCostPeriod('today',${costToday},${gramToday})" style="padding:4px 10px;border-radius:4px;border:none;background:transparent;font-size:11px;font-weight:500;cursor:pointer;color:var(--secondaryLabel);">今日</button>
+        <button class="cost-period-btn" id="costBtnMonth" onclick="switchCostPeriod('month',${costMonth},${gramMonth})" style="padding:4px 10px;border-radius:4px;border:none;background:#e5e5ea;font-size:11px;font-weight:500;cursor:pointer;color:var(--label);">本月</button>
+        <button class="cost-period-btn" id="costBtnYear" onclick="switchCostPeriod('year',${costYear},${gramYear})" style="padding:4px 10px;border-radius:4px;border:none;background:transparent;font-size:11px;font-weight:500;cursor:pointer;color:var(--secondaryLabel);">今年</button>
+      </div>
+    </div>
+  `;
+
+  // 把消耗统计插入到 statsGrid 后面
+  const statsGrid = document.getElementById('statsGrid');
+  statsGrid.parentNode.insertBefore(costSection, statsGrid.nextSibling);
+
+  // 提醒
+  const alerts = filaments.filter(f=>{
+    const s = getStatus(f,settings);
+    return s==='need_dry'||(s!=='finished'&&f.remainingWeight<=settings.lowStockGrams);
+  });
+  const alertEl = document.getElementById('alertList');
+  if (!alerts.length) {
+    alertEl.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="empty-icon">✓</div><div class="empty-title">一切正常</div></div>';
+  } else {
+    alertEl.innerHTML = alerts.map(f=>{
+      const s = getStatus(f,settings);
+      const days = f.openedDate ? Math.floor((Date.now()-new Date(f.openedDate).getTime())/86400000) : 0;
+      const txt = s==='need_dry' ? `已开封 ${days} 天` : `仅剩 ${f.remainingWeight}g`;
+      const icon = s==='need_dry' ? '💧':'📉';
+      return `<div class="card" style="padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="showDetail('${f.id}')">
+        <span style="font-size:20px;">${icon}</span>
+        <div style="flex:1;"><div style="font-weight:600;font-size:14px;">${f.brand} · ${f.color}</div>
+        <div style="font-size:12px;color:var(--secondaryLabel);">${txt} — ${s==='need_dry'?'建议烘干':'建议补货'}</div></div>
+        <span style="color:var(--tertiaryLabel);">›</span></div>`;
+    }).join('');
+  }
+
+  // 最近记录
+  const allLogs = [];
+  filaments.forEach(f=>{ if(f.usageLogs) f.usageLogs.forEach(l=>allLogs.push({...l,fid:f.id,color:f.color,brand:f.brand,mat:f.material})); });
+  allLogs.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const recent = allLogs.slice(0,4);
+  const rlEl = document.getElementById('recentLogs');
+  if (!recent.length) {
+    rlEl.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="empty-icon">📝</div><div class="empty-desc">暂无记录</div></div>';
+  } else {
+    rlEl.innerHTML = recent.map(l=>`
+      <div class="card" onclick="showDetail('${l.fid}')" style="cursor:pointer;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+        <div><span class="capsule ${capsuleClass(l.mat)}">${l.mat}</span> <b>${l.brand} ${l.color}</b>${l.modelName?` · ${l.modelName}`:''}</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-weight:600;">${l.consumedWeight}g</span>
+          ${l.cost?`<span style="font-size:12px;color:var(--red);">¥${l.cost.toFixed(2)}</span>`:''}
+          <span style="color:var(--secondaryLabel);font-size:11px;">${fmtDate(l.date)}</span>
+        </div>
+      </div>`).join('');
+  }
+}
+
+// ============================================================
+// 耗材列表
+// ============================================================
+function getFiltered() {
+  let r = [...filaments];
+  if (matFilter!=='all') {
+    if (matFilter==='PLA') r = r.filter(f=>/PLA/i.test(f.material)||/Silk|Matte|木质|大理石/.test(f.material)&&/PLA/i.test(f.material));
+    else if (matFilter==='尼龙') r = r.filter(f=>/尼龙|PA\d|PA-/i.test(f.material));
+    else r = r.filter(f=>f.material===matFilter||f.material.startsWith(matFilter));
+  }
+  if (statFilter!=='all') r = r.filter(f=>getStatus(f,settings)===statFilter);
+  if (searchQuery.trim()) {
+    const q = searchQuery.trim().toLowerCase();
+    r = r.filter(f=>f.brand.toLowerCase().includes(q)||f.color.toLowerCase().includes(q)||f.material.toLowerCase().includes(q)||(f.notes&&f.notes.toLowerCase().includes(q)));
+  }
+  switch(sortBy) {
+    case 'newest': r.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)); break;
+    case 'oldest': r.sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0)); break;
+    case 'brand': r.sort((a,b)=>a.brand.localeCompare(b.brand,'zh')); break;
+    case 'remaining': r.sort((a,b)=>a.remainingWeight-b.remainingWeight); break;
+  }
+  return r;
+}
+
+function renderFilaments() {
+  filaments = loadFilaments(); settings = loadSettings();
+  const list = getFiltered();
+  const grid = document.getElementById('filamentGrid');
+  const empty = document.getElementById('filamentEmpty');
+  const badge = document.getElementById('filamentCount');
+  badge.textContent = filaments.length;
+  // 红点徽章已禁用
+
+  if (!list.length) { grid.innerHTML=''; empty.style.display='block'; }
+  else {
+    empty.style.display='none';
+    grid.innerHTML = list.map(f=>{
+      const st = getStatus(f,settings);
+      const pct = f.netWeight>0?Math.round(f.remainingWeight/f.netWeight*100):0;
+      let pcls='good',stxt='使用中',dcls='in-use';
+      if (st==='finished'){pcls='low';stxt='已用完';dcls='finished';}
+      else if(st==='need_dry'){pcls='warn';stxt='需烘干';dcls='need-dry';}
+      else if(st==='unopened'){pcls='good';stxt='未开封';dcls='unopened';}
+      else if(pct<20){pcls='low';}else if(pct<40){pcls='warn';}
+      return `<div class="filament-card" onclick="showDetail('${f.id}')">
+        <div class="fc-top">
+          <div class="fc-swatch" style="background:${f.colorHex||'#ccc'};"></div>
+          <div class="fc-material">${f.material}</div>
+        </div>
+        <div class="fc-brand">${f.brand||'未设置'}</div>
+        <div class="fc-color">${f.color||'未知'}</div>
+        <div class="fc-progress"><div class="fc-fill ${pcls}" style="width:${pct}%"></div></div>
+        <div class="fc-status"><span class="dot ${dcls}"></span>${stxt} · ${f.remainingWeight}g</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ============================================================
+// 详情页
+// ============================================================
+function renderDetail() {
+  const f = filaments.find(fi=>fi.id===viewId);
+  if (!f) { goBackToFilaments(); return; }
+  const st = getStatus(f,settings);
+  let stxt='使用中', scls='in-use';
+  if (st==='finished'){stxt='已用完';scls='finished';}
+  else if(st==='need_dry'){stxt='需烘干';scls='need-dry';}
+  else if(st==='unopened'){stxt='未开封';scls='unopened';}
+  const openedDays = f.openedDate ? Math.floor((Date.now()-new Date(f.openedDate).getTime())/86400000) : 0;
+
+  document.getElementById('detailContent').innerHTML = `
+    <div class="detail-hero">
+      <div class="detail-swatch" style="background:${f.colorHex||'#ccc'};"></div>
+      <div>
+        <div class="dh-brand">${f.brand||'未设置品牌'}</div>
+        <div class="dh-name">${f.color||'未知颜色'}</div>
+        <div class="dh-meta">
+          <span class="capsule ${capsuleClass(f.material)}">${f.material}</span>
+          <span class="dot ${scls}"></span>${stxt}
+        </div>
+      </div>
+    </div>
+
+    <!-- 库存信息 -->
+    <div class="card">
+      <div style="font-size:13px;color:var(--secondaryLabel);margin-bottom:10px;">库存信息</div>
+      <div class="info-row"><span class="ir-label">线径</span><span class="ir-value">${f.diameter||1.75}mm</span></div>
+      <div class="info-row"><span class="ir-label">总重</span><span class="ir-value">${f.netWeight}g</span></div>
+      <div class="info-row"><span class="ir-label">剩余</span><span class="ir-value" style="font-weight:700;">${f.remainingWeight}g</span></div>
+      <div class="info-row"><span class="ir-label">空盘重</span><span class="ir-value">${f.spoolWeight||0}g</span></div>
+      <div class="info-row"><span class="ir-label">购买价格</span><span class="ir-value">${f.price?f.price+' 元':'未设置'}</span></div>
+      <div class="info-row"><span class="ir-label">每克单价</span><span class="ir-value">${f.price&&f.netWeight?(f.price/f.netWeight).toFixed(4)+' 元/g':'—'}</span></div>
+      <div class="info-row"><span class="ir-label">已消耗金额</span><span class="ir-value" style="font-weight:700;">${f.price&&f.netWeight?(f.price-f.price*f.remainingWeight/f.netWeight).toFixed(2)+' 元':'—'}</span></div>
+      <div class="info-row"><span class="ir-label">购买日期</span><span class="ir-value">${fmtDate(f.purchaseDate)}</span></div>
+      <div class="info-row"><span class="ir-label">开封日期</span><span class="ir-value">${fmtDate(f.openedDate)}${f.openedDate?` (${openedDays}天)`:' (未开封)'}</span></div>
+      ${st==='need_dry'?`<div style="margin-top:8px;padding:8px 12px;background:var(--yellow-bg);border-radius:8px;font-size:13px;">💧 已开封 ${openedDays} 天，建议烘干处理</div>`:''}
+    </div>
+
+    <!-- 打印参数 -->
+    <div class="card">
+      <div style="font-size:13px;color:var(--secondaryLabel);margin-bottom:10px;">打印参数</div>
+      ${f.nozzleTemp||f.bedTemp||f.printSpeed?`
+        ${f.nozzleTemp?`<div class="info-row"><span class="ir-label">喷嘴温度</span><span class="ir-value">${f.nozzleTemp}℃</span></div>`:''}
+        ${f.bedTemp?`<div class="info-row"><span class="ir-label">热床温度</span><span class="ir-value">${f.bedTemp}℃</span></div>`:''}
+        ${f.printSpeed?`<div class="info-row"><span class="ir-label">打印速度</span><span class="ir-value">${f.printSpeed}mm/s</span></div>`:''}
+        ${f.retractionSettings?`<div class="info-row"><span class="ir-label">回抽设置</span><span class="ir-value">${f.retractionSettings}</span></div>`:''}
+        ${f.dryingTemp?`<div class="info-row"><span class="ir-label">烘干温度</span><span class="ir-value">${f.dryingTemp}℃</span></div>`:''}
+        ${f.dryingTime?`<div class="info-row"><span class="ir-label">烘干时间</span><span class="ir-value">${f.dryingTime}h</span></div>`:''}
+      `:'<div style="font-size:13px;color:var(--secondaryLabel);">未设置</div>'}
+      ${f.notes?`<div style="margin-top:8px;font-size:13px;color:var(--secondaryLabel);">备注：${f.notes}</div>`:''}
+    </div>
+
+    <!-- 使用记录 -->
+    <div class="card">
+      <div style="font-size:13px;color:var(--secondaryLabel);margin-bottom:10px;">使用记录</div>
+      ${f.usageLogs&&f.usageLogs.length?`
+        <div class="timeline">${f.usageLogs.map((l,i)=>`
+          <div class="timeline-item" style="position:relative;">
+            <button onclick="deleteUsageLog('${f.id}',${i})" style="position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:none;background:#e5e5ea;color:var(--secondaryLabel);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="删除此记录">✕</button>
+            <div class="timeline-date">${fmtDate(l.date)}</div>
+            <div class="timeline-body" style="padding-right:28px;">${l.modelName?`<span class="timeline-model">${l.modelName}</span> · `:''}消耗 <b>${l.consumedWeight}g</b>${l.cost?` · <b style="color:var(--red);">¥${l.cost.toFixed(2)}</b>`:''}${l.notes?`<div style="font-size:12px;color:var(--secondaryLabel);margin-top:2px;">${l.notes}</div>`:''}</div>
+          </div>`).reverse().join('')}</div>
+      `:'<div style="font-size:13px;color:var(--secondaryLabel);">暂无使用记录</div>'}
+    </div>
+
+    <!-- 操作 -->
+    <div style="display:flex;gap:10px;margin-bottom:12px;">
+      <button class="btn btn-primary btn-block" onclick="showRecordUsage('${f.id}')">记录使用</button>
+      <button class="btn btn-secondary btn-block" onclick="showEditFilament('${f.id}')">编辑</button>
+    </div>
+    <button class="btn btn-ghost btn-block" style="color:var(--red);margin-bottom:24px;" onclick="confirmDeleteFilament('${f.id}')">删除耗材</button>
+  `;
+}
+
+// ============================================================
+// 使用记录页
+// ============================================================
+function renderRecords() {
+  var allLogs = [];
+  filaments.forEach(f=>{ if(f.usageLogs) f.usageLogs.forEach(l=>allLogs.push({...l,fid:f.id,color:f.color,brand:f.brand,mat:f.material,colorHex:f.colorHex})); });
+  allLogs.sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  // 搜索过滤
+  var q = (document.getElementById('recordsSearchInput').value || '').trim().toLowerCase();
+  if (q) {
+    allLogs = allLogs.filter(function(l) {
+      return (l.modelName||'').toLowerCase().indexOf(q)!==-1
+        || (l.brand||'').toLowerCase().indexOf(q)!==-1
+        || (l.color||'').toLowerCase().indexOf(q)!==-1
+        || (l.mat||'').toLowerCase().indexOf(q)!==-1
+        || (l.notes||'').toLowerCase().indexOf(q)!==-1;
+    });
+  }
+
+  const tl = document.getElementById('recordsTimeline');
+  const em = document.getElementById('recordsEmpty');
+  if (!allLogs.length) { tl.innerHTML=''; em.style.display='block'; }
+  else {
+    em.style.display='none';
+    tl.innerHTML = allLogs.map(l=>`
+      <div class="timeline-item" onclick="showDetail('${l.fid}')" style="cursor:pointer;">
+        <div class="timeline-date">${fmtDate(l.date)}</div>
+        <div class="timeline-body">
+          <span class="capsule ${capsuleClass(l.mat)}" style="font-size:10px;">${l.mat}</span>
+          <b>${l.brand} ${l.color}</b>${l.modelName?` · ${l.modelName}`:''}
+          <div style="margin-top:2px;font-size:13px;">消耗 <b style="color:var(--label);">${l.consumedWeight}g</b>${l.cost?` · <b style="color:var(--red);">¥${l.cost.toFixed(2)}</b>`:''}${l.notes?` — ${l.notes}`:''}</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+// ============================================================
+// 设置
+// ============================================================
+function renderSettings() {
+  document.getElementById('reminderDaysDisplay').textContent = settings.reminderDays;
+  document.getElementById('lowStockDisplay').textContent = settings.lowStockGrams;
+}
+
+function editReminderDays() {
+  const html = `<div style="padding:20px 16px;">
+    <div style="font-size:14px;color:var(--secondaryLabel);margin-bottom:12px;text-align:center;">开封超过此天数后，耗材会标记为"需烘干"</div>
+    <input class="form-input" type="number" id="fRemind" value="${settings.reminderDays}" min="1" max="365" style="width:100%;padding:14px;border:2px solid #e5e5ea;border-radius:10px;font-size:24px;text-align:center;font-weight:600;" autofocus>
+  </div>`;
+  showSheet('开封提醒天数', html, ()=>{
+    const v = parseInt(document.getElementById('fRemind').value);
+    if (v&&v>0) { settings.reminderDays=v; saveSettings(settings); closeSheet(); toast('已更新'); renderSettings(); renderHome(); }
+  }, '保存');
+}
+
+function editLowStockThreshold() {
+  const html = `<div style="padding:20px 16px;">
+    <div style="font-size:14px;color:var(--secondaryLabel);margin-bottom:12px;text-align:center;">剩余重量低于此值时会提醒补货</div>
+    <input class="form-input" type="number" id="fLow" value="${settings.lowStockGrams}" min="10" max="1000" style="width:100%;padding:14px;border:2px solid #e5e5ea;border-radius:10px;font-size:24px;text-align:center;font-weight:600;" autofocus>
+  </div>`;
+  showSheet('低库存阈值', html, ()=>{
+    const v = parseInt(document.getElementById('fLow').value);
+    if (v&&v>0) { settings.lowStockGrams=v; saveSettings(settings); closeSheet(); toast('已更新'); renderSettings(); renderHome(); }
+  }, '保存');
+}
+
+function openSortSheet() {
+  const opts = [
+    {v:'newest',l:'最新添加'},{v:'oldest',l:'最早添加'},{v:'brand',l:'按品牌'},{v:'remaining',l:'剩余最少'}
+  ];
+  const html = `<div style="padding:0 16px;">${opts.map(o=>`
+    <button class="btn btn-block" style="margin-bottom:8px;justify-content:flex-start;font-size:15px;${sortBy===o.v?'background:#e8f2ff;color:var(--blue);font-weight:600;':''}"
+      onclick="sortBy='${o.v}';closeSheet();renderFilaments();">${sortBy===o.v?'✓ ':''}${o.l}</button>`).join('')}</div>`;
+  showSheet('排序', html, null);
+}
+
+// 数据导出
+function exportData() {
+  const filename = `耗材管家备份_${new Date().toISOString().split('T')[0]}.json`;
+  const data = { filaments, settings, exportedAt: new Date().toISOString(), version:'1.0' };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+
+  // 弹窗显示导出信息
+  var c = document.getElementById('confirmContainer');
+  c.innerHTML = `
+    <div class="confirm-overlay" onclick="document.getElementById('confirmContainer').innerHTML=''">
+      <div class="confirm-box">
+        <div class="confirm-body">
+          <div class="confirm-icon">✅</div>
+          <div class="confirm-title">导出成功</div>
+          <div class="confirm-desc">
+            文件名：<b>${filename}</b><br><br>
+            <span style="color:var(--secondaryLabel);">已保存到浏览器的默认下载文件夹</span>
+            ${/Android|iPhone|iPad/i.test(navigator.userAgent) ? '<br><br>📱 手机通常保存在<br><b>文件管理 → 下载</b> 文件夹' : '<br><br>💻 电脑通常保存在<br><b>下载</b> 或 <b>Downloads</b> 文件夹'}
+          </div>
+        </div>
+        <div class="confirm-actions">
+          <button class="ca-cancel" style="color:var(--blue);" onclick="document.getElementById('confirmContainer').innerHTML=''">知道了</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// 数据导入
+function importData(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.filaments||!Array.isArray(data.filaments)) throw new Error();
+      showConfirm('确认导入',`将导入 <b>${data.filaments.length}</b> 条耗材，会覆盖当前数据。建议先导出备份。`,'📥',()=>{
+        filaments=data.filaments; saveFilaments(filaments);
+        if(data.settings){settings={...DEFAULT_SETTINGS,...data.settings};saveSettings(settings);}
+        renderFilaments(); renderHome();
+
+        // 弹窗显示导入结果
+        var dc = document.getElementById('confirmContainer');
+        dc.innerHTML = `
+          <div class="confirm-overlay" onclick="document.getElementById('confirmContainer').innerHTML=''">
+            <div class="confirm-box">
+              <div class="confirm-body">
+                <div class="confirm-icon">✅</div>
+                <div class="confirm-title">导入成功</div>
+                <div class="confirm-desc">
+                  已恢复 <b>${filaments.length}</b> 条耗材记录<br><br>
+                  <span style="color:var(--secondaryLabel);">数据已覆盖，可正常使用</span>
+                </div>
+              </div>
+              <div class="confirm-actions">
+                <button class="ca-cancel" style="color:var(--blue);" onclick="document.getElementById('confirmContainer').innerHTML=''">知道了</button>
+              </div>
+            </div>
+          </div>`;
+      });
+    } catch(_) { toast('文件格式不正确'); }
+  };
+  reader.readAsText(file); e.target.value='';
+}
+
+function confirmClearData() {
+  showConfirm('清除所有数据','删除所有耗材和使用记录，不可恢复。建议先导出备份。','🗑️',()=>{
+    filaments=[]; saveFilaments(filaments); settings={...DEFAULT_SETTINGS}; saveSettings(settings);
+    document.getElementById('filamentCount').style.display = 'none';
+    toast('已清除'); switchTab('home');
+  });
+}
+
+// --- QQ 群 ---
+// 切换首页消耗统计周期
+function switchCostPeriod(period, cost, gram) {
+  document.querySelectorAll('.cost-period-btn').forEach(b => { b.style.background = 'transparent'; b.style.color = 'var(--secondaryLabel)'; });
+  const btn = document.getElementById('costBtn' + period.charAt(0).toUpperCase() + period.slice(1));
+  if (btn) { btn.style.background = '#e5e5ea'; btn.style.color = 'var(--label)'; }
+  const labels = { today: '今日消耗', month: '本月消耗', year: '今年消耗' };
+  document.getElementById('costPeriodLabel').textContent = labels[period];
+  document.getElementById('costAmount').textContent = cost > 0 ? '¥' + cost.toFixed(1) : '—';
+  document.getElementById('costGram').textContent = cost > 0 ? gram + 'g' : '暂无记录';
+}
+
+function joinQQGroup() {
+  const uin = '199855171';
+  // 尝试唤醒 QQ
+  const schemes = [
+    'mqqapi://card/show_pslcard?src_type=internet&version=1&card_type=group&uin=' + uin,
+    'mqqwpa://im/chat?chat_type=group&uin=' + uin + '&version=1&src_type=web',
+  ];
+  let opened = false;
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = schemes[0];
+  document.body.appendChild(iframe);
+  setTimeout(function() {
+    document.body.removeChild(iframe);
+    if (!opened) {
+      // 如果 QQ 没有打开，复制群号并提示
+      copyQQGroup();
+      toast('已复制群号，请打开 QQ 搜索加群');
+    }
+  }, 2000);
+  // 打开加入群聊的网页版
+  window.open('https://qm.qq.com/cgi-bin/qm/qr?k=' + uin + '&jump_from=webapi', '_blank');
+}
+
+function copyQQGroup() {
+  var ta = document.createElement('textarea');
+  ta.value = '199855171';
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  toast('已复制群号 199855171');
+}
+
+// ============================================================
+// 耗材 CRUD
+// ============================================================
+
+// --- 添加（含模板快速选择） ---
+function showAddFilament() {
+  editId = null; templateId = null;
+  const templates = [...filaments].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).slice(0, 8);
+
+  const tplHTML = templates.length ? `
+    <div style="font-size:12px;color:var(--secondaryLabel);padding:4px 16px 6px;letter-spacing:0.5px;">从已有耗材快速添加</div>
+    <div class="template-scroll" id="templateScroll">
+      ${templates.map(f=>`
+        <div class="template-chip" data-tid="${f.id}" onclick="selectTemplate('${f.id}')">
+          <div class="tp-swatch" style="background:${f.colorHex||'#ccc'};"></div>
+          <div class="tp-info">
+            <div class="tp-brand">${f.brand}</div>
+            <div class="tp-name">${f.color}</div>
+            <div class="tp-material">${f.material}</div>
+          </div>
+          <span class="tp-arrow">✓</span>
+        </div>`).join('')}
+    </div>
+  ` : '';
+
+  const html = `
+    <div style="padding:0 16px 12px;">
+      <button class="btn btn-primary btn-block" onclick="event.stopPropagation();openCameraScanner()" style="gap:8px;background:var(--label);">
+        📷 拍照识别耗材
+      </button>
+      <div style="font-size:11px;color:var(--secondaryLabel);text-align:center;margin-top:6px;">拍标签自动识别品牌、材质、颜色</div>
+    </div>
+    ` + tplHTML + `
+    <div class="form-section-title">耗材信息</div>
+    <div class="form-group-inset">
+      <div class="form-row-inset"><span class="f-label">品牌</span><input id="fBrand" list="brandList" placeholder="输入或选择" autocomplete="off"></div>
+      <datalist id="brandList">${[...new Set(filaments.map(f=>f.brand).filter(Boolean))].map(b=>`<option value="${b}">`).join('')}</datalist>
+      <div class="form-row-inset" style="align-items:center;">
+        <span class="f-label">颜色</span>
+        <input id="fColor" placeholder="必填" style="flex:1;">
+        <div class="color-dot" id="colorPreview" style="background:#ccc;"></div>
+      </div>
+      <div class="form-row-inset"><span class="f-label">材质</span><select id="fMaterial">${MATERIALS.map(m=>`<option>${m}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-group-inset">
+      <div class="form-row-inset"><span class="f-label">总重量</span><input type="number" id="fNet" value="1000" style="width:60px;"> <span style="font-size:13px;color:var(--secondaryLabel);margin-left:4px;">g</span></div>
+      <div class="form-row-inset"><span class="f-label">剩余重量</span><input type="number" id="fRemain" value="1000" style="width:60px;"> <span style="font-size:13px;color:var(--secondaryLabel);margin-left:4px;">g</span></div>
+      <div class="form-row-inset"><span class="f-label">空盘重</span><input type="number" id="fSpool" value="0" style="width:60px;"> <span style="font-size:13px;color:var(--secondaryLabel);margin-left:4px;">g</span></div>
+      <div class="form-row-inset"><span class="f-label">购买价格</span><input type="number" id="fPrice" placeholder="元" step="0.01" style="width:80px;"> <span style="font-size:13px;color:var(--secondaryLabel);margin-left:4px;">元</span></div>
+      <div class="form-row-inset"><span class="f-label">线径</span><select id="fDia"><option>1.75</option><option>2.85</option></select></div>
+      <div class="form-row-inset"><span class="f-label">开封日期</span><input type="date" id="fOpened"></div>
+      <div class="form-row-inset"><span class="f-label">购买日期</span><input type="date" id="fPurchased"></div>
+    </div>
+    <div class="form-section-title">打印参数</div>
+    <div class="form-group-inset">
+      <div class="form-row-inset"><span class="f-label">喷嘴温度</span><input id="fNozzle" placeholder="190-220 ℃"></div>
+      <div class="form-row-inset"><span class="f-label">热床温度</span><input id="fBed" placeholder="50-65 ℃"></div>
+      <div class="form-row-inset"><span class="f-label">打印速度</span><input id="fSpeed" placeholder="40-60 mm/s"></div>
+      <div class="form-row-inset"><span class="f-label">回抽设置</span><input id="fRetraction" placeholder="6mm@45mm/s"></div>
+      <div class="form-row-inset"><span class="f-label">烘干温度</span><input id="fDryTemp" placeholder="50 ℃"></div>
+      <div class="form-row-inset"><span class="f-label">烘干时间</span><input id="fDryTime" placeholder="4 h"></div>
+    </div>
+    <div class="form-group-inset">
+      <div class="form-row-inset"><span class="f-label">备注</span><input id="fNotes" placeholder="其他备注"></div>
+    </div>
+    ${templateId ? `<div style="padding:0 16px;margin-top:8px;"><button class="btn btn-ghost btn-block" onclick="clearTemplate()">清除模板选择</button></div>` : ''}
+  `;
+
+  showSheet('添加耗材', html, saveNewFilament, '保存');
+
+  // 联动颜色预览
+  const colorInput = document.getElementById('fColor');
+  const colorPreview = document.getElementById('colorPreview');
+  if (colorInput) {
+    colorInput.addEventListener('input', function() {
+      // 根据颜色名尝试猜测颜色
+      const map = { '白':'#f5f5f0','白色':'#f5f5f0','黑':'#2c2c2c','黑色':'#2c2c2c','红':'#e03030','红色':'#e03030',
+        '蓝':'#3070d0','蓝色':'#3070d0','绿':'#30a040','绿色':'#30a040','黄':'#e0c030','黄色':'#e0c030',
+        '橙':'#f08030','橙色':'#f08030','紫':'#8040c0','紫色':'#8040c0','灰':'#909090','灰色':'#909090',
+        '透明':'#e8e8e8','丝绸':'#d4c8b8','金':'#d4a030','金色':'#d4a030','银':'#c0c0c0','银色':'#c0c0c0',
+        '粉':'#f0a0b0','粉色':'#f0a0b0','棕':'#8b5a30','棕色':'#8b5a30','玫瑰':'#e8a0b0',
+      };
+      const c = this.value.trim();
+      let hex = '#ccc';
+      for (const [k,v] of Object.entries(map)) { if (c.includes(k)) { hex=v; break; } }
+      colorPreview.style.background = hex;
+    });
+  }
+}
+
+function selectTemplate(id) {
+  templateId = id;
+  const f = filaments.find(fi=>fi.id===id); if(!f) return;
+  // 高亮选中
+  document.querySelectorAll('.template-chip').forEach(c=>c.classList.remove('selected'));
+  const chip = document.querySelector(`.template-chip[data-tid="${id}"]`);
+  if (chip) chip.classList.add('selected');
+  // 填充表单（不填颜色和重量）
+  document.getElementById('fBrand').value = f.brand||'';
+  document.getElementById('fMaterial').value = f.material||'PLA';
+  document.getElementById('fDia').value = f.diameter||1.75;
+  document.getElementById('fNozzle').value = f.nozzleTemp||'';
+  document.getElementById('fBed').value = f.bedTemp||'';
+  document.getElementById('fSpeed').value = f.printSpeed||'';
+  document.getElementById('fRetraction').value = f.retractionSettings||'';
+  document.getElementById('fDryTemp').value = f.dryingTemp||'';
+  document.getElementById('fDryTime').value = f.dryingTime||'';
+  document.getElementById('fSpool').value = f.spoolWeight||0;
+  document.getElementById('fPrice').value = f.price||0;
+  document.getElementById('fNotes').value = f.notes||'';
+}
+
+function clearTemplate() {
+  templateId = null;
+  document.querySelectorAll('.template-chip').forEach(c=>c.classList.remove('selected'));
+}
+
+function saveNewFilament() {
+  const brand = document.getElementById('fBrand').value.trim();
+  const color = document.getElementById('fColor').value.trim();
+  if (!brand||!color) { toast('请填写品牌和颜色'); return; }
+  const colorPreview = document.getElementById('colorPreview');
+  const colorHex = colorPreview ? colorPreview.style.background.replace(/[^#\da-f]/gi,'') || '#ccc' : '#ccc';
+
+  const f = {
+    id: uid(), brand, color, colorHex,
+    material: document.getElementById('fMaterial').value,
+    diameter: parseFloat(document.getElementById('fDia').value)||1.75,
+    netWeight: parseInt(document.getElementById('fNet').value)||1000,
+    remainingWeight: parseInt(document.getElementById('fRemain').value)||1000,
+    spoolWeight: parseInt(document.getElementById('fSpool').value)||0,
+    price: parseFloat(document.getElementById('fPrice').value)||0,
+    purchaseDate: document.getElementById('fPurchased').value||null,
+    openedDate: document.getElementById('fOpened').value||null,
+    nozzleTemp: document.getElementById('fNozzle').value.trim()||null,
+    bedTemp: document.getElementById('fBed').value.trim()||null,
+    printSpeed: document.getElementById('fSpeed').value.trim()||null,
+    retractionSettings: document.getElementById('fRetraction').value.trim()||null,
+    dryingTemp: document.getElementById('fDryTemp').value.trim()||null,
+    dryingTime: document.getElementById('fDryTime').value.trim()||null,
+    notes: document.getElementById('fNotes').value.trim()||null,
+    usageLogs: [], createdAt: new Date().toISOString(),
+  };
+  filaments.unshift(f); saveFilaments(filaments); closeSheet();
+  toast('已添加'); renderFilaments();
+}
+
+// --- 编辑 ---
+function showEditFilament(id) {
+  const f = filaments.find(fi=>fi.id===id); if(!f) return; editId = id;
+  const matOpts = MATERIALS.map(m=>`<option ${f.material===m?'selected':''}>${m}</option>`).join('');
+
+  const html = `
+    <div class="form-section-title">耗材信息</div>
+    <div class="form-group-inset">
+      <div class="form-row-inset"><span class="f-label">品牌</span><input id="fBrand" value="${f.brand||''}" list="brandList" placeholder="输入或选择" autocomplete="off"></div>
+      <datalist id="brandList">${[...new Set(filaments.map(f=>f.brand).filter(Boolean))].map(b=>`<option value="${b}">`).join('')}</datalist>
+      <div class="form-row-inset"><span class="f-label">颜色</span><input id="fColor" value="${f.color||''}" placeholder="必填"><div class="color-dot" id="colorPreview" style="background:${f.colorHex||'#ccc'};flex-shrink:0;"></div></div>
+      <div class="form-row-inset"><span class="f-label">材质</span><select id="fMaterial">${matOpts}</select></div>
+    </div>
+    <div class="form-group-inset">
+      <div class="form-row-inset"><span class="f-label">总重量</span><input type="number" id="fNet" value="${f.netWeight}" style="width:60px;"> <span style="font-size:13px;color:var(--secondaryLabel);margin-left:4px;">g</span></div>
+      <div class="form-row-inset"><span class="f-label">剩余重量</span><input type="number" id="fRemain" value="${f.remainingWeight}" style="width:60px;"> <span style="font-size:13px;color:var(--secondaryLabel);margin-left:4px;">g</span></div>
+      <div class="form-row-inset"><span class="f-label">空盘重</span><input type="number" id="fSpool" value="${f.spoolWeight||0}" style="width:60px;"> <span style="font-size:13px;color:var(--secondaryLabel);margin-left:4px;">g</span></div>
+      <div class="form-row-inset"><span class="f-label">购买价格</span><input type="number" id="fPrice" value="${f.price||0}" step="0.01" style="width:80px;"> <span style="font-size:13px;color:var(--secondaryLabel);margin-left:4px;">元</span></div>
+      <div class="form-row-inset"><span class="f-label">线径</span><select id="fDia"><option ${(f.diameter||1.75)==1.75?'selected':''}>1.75</option><option ${f.diameter==2.85?'selected':''}>2.85</option></select></div>
+      <div class="form-row-inset"><span class="f-label">开封日期</span><input type="date" id="fOpened" value="${f.openedDate||''}"></div>
+      <div class="form-row-inset"><span class="f-label">购买日期</span><input type="date" id="fPurchased" value="${f.purchaseDate||''}"></div>
+    </div>
+    <div class="form-section-title">打印参数</div>
+    <div class="form-group-inset">
+      <div class="form-row-inset"><span class="f-label">喷嘴温度</span><input id="fNozzle" value="${f.nozzleTemp||''}" placeholder="190-220 ℃"></div>
+      <div class="form-row-inset"><span class="f-label">热床温度</span><input id="fBed" value="${f.bedTemp||''}" placeholder="50-65 ℃"></div>
+      <div class="form-row-inset"><span class="f-label">打印速度</span><input id="fSpeed" value="${f.printSpeed||''}" placeholder="40-60 mm/s"></div>
+      <div class="form-row-inset"><span class="f-label">回抽设置</span><input id="fRetraction" value="${f.retractionSettings||''}" placeholder="6mm@45mm/s"></div>
+      <div class="form-row-inset"><span class="f-label">烘干温度</span><input id="fDryTemp" value="${f.dryingTemp||''}" placeholder="50 ℃"></div>
+      <div class="form-row-inset"><span class="f-label">烘干时间</span><input id="fDryTime" value="${f.dryingTime||''}" placeholder="4 h"></div>
+    </div>
+    <div class="form-group-inset">
+      <div class="form-row-inset"><span class="f-label">备注</span><input id="fNotes" value="${f.notes||''}" placeholder="其他备注"></div>
+    </div>
+  `;
+  showSheet('编辑耗材', html, saveEditFilament, '保存');
+
+  // 添加颜色输入监听（编辑表单）
+  setTimeout(function() {
+    var ci = document.getElementById('fColor');
+    var cp = document.getElementById('colorPreview');
+    if (ci && cp) {
+      ci.addEventListener('input', function() {
+        var map = { '白':'#f5f5f0','白色':'#f5f5f0','黑':'#2c2c2c','黑色':'#2c2c2c','红':'#e03030','红色':'#e03030','蓝':'#3070d0','蓝色':'#3070d0','绿':'#30a040','绿色':'#30a040','黄':'#e0c030','黄色':'#e0c030','橙':'#f08030','橙色':'#f08030','紫':'#8040c0','紫色':'#8040c0','灰':'#909090','灰色':'#909090','透明':'#e8e8e8','丝绸':'#d4c8b8','金':'#d4a030','金色':'#d4a030','银':'#c0c0c0','银色':'#c0c0c0','粉':'#f0a0b0','粉色':'#f0a0b0','棕':'#8b5a30','棕色':'#8b5a30' };
+        var c = this.value.trim(); var hex = '#ccc';
+        for (var k in map) { if (c.indexOf(k) !== -1) { hex = map[k]; break; } }
+        cp.style.background = hex;
+      });
+    }
+  }, 100);
+}
+
+function saveEditFilament() {
+  const f = filaments.find(fi=>fi.id===editId); if (!f) return;
+  const brand = document.getElementById('fBrand').value.trim();
+  const color = document.getElementById('fColor').value.trim();
+  if (!brand || !color) { toast('请填写品牌和颜色'); return; }
+  f.brand = brand;
+  f.color = color;
+  f.material = document.getElementById('fMaterial').value;
+  f.diameter = parseFloat(document.getElementById('fDia').value) || 1.75;
+  f.netWeight = parseInt(document.getElementById('fNet').value) || 1000;
+  f.remainingWeight = parseInt(document.getElementById('fRemain').value) || 0;
+  f.spoolWeight = parseInt(document.getElementById('fSpool').value) || 0;
+  f.price = parseFloat(document.getElementById('fPrice').value) || 0;
+  f.purchaseDate = document.getElementById('fPurchased').value || null;
+  f.openedDate = document.getElementById('fOpened').value || null;
+  f.nozzleTemp = document.getElementById('fNozzle').value.trim() || null;
+  f.bedTemp = document.getElementById('fBed').value.trim() || null;
+  f.printSpeed = document.getElementById('fSpeed').value.trim() || null;
+  f.retractionSettings = document.getElementById('fRetraction').value.trim() || null;
+  f.dryingTemp = document.getElementById('fDryTemp').value.trim() || null;
+  f.dryingTime = document.getElementById('fDryTime').value.trim() || null;
+  f.notes = document.getElementById('fNotes').value.trim() || null;
+  saveFilaments(filaments);
+  closeSheet();
+  toast('已更新');
+  renderDetail();
+  renderFilaments();
+}
+
+function deleteUsageLog(fid, logIndex) {
+  var f = filaments.find(fi=>fi.id===fid); if (!f) return;
+  var log = f.usageLogs[logIndex];
+  showConfirm('删除使用记录',
+    `确定删除「${log.modelName||'未命名'}」消耗 ${log.consumedWeight}g 的记录？<br><br><span style="color:var(--secondaryLabel);">将恢复 ${log.consumedWeight}g 剩余重量</span>`,'🗑️',()=>{
+    f.remainingWeight += log.consumedWeight;
+    f.usageLogs.splice(logIndex, 1);
+    saveFilaments(filaments); renderDetail(); renderFilaments(); renderHome();
+    toast('已删除记录，已恢复余量');
+  });
+}
+
+function confirmDeleteFilament(id) {
+  const f = filaments.find(fi=>fi.id===id); if(!f) return;
+  showConfirm('删除耗材',`确定删除「${f.brand} · ${f.color}」？使用记录也会一并删除。`,'🗑️',()=>{
+    filaments=filaments.filter(fi=>fi.id!==id); saveFilaments(filaments);
+    toast('已删除'); goBackToFilaments(); renderFilaments();
+  });
+}
+
+// ============================================================
+// 记录使用
+// ============================================================
+function showRecordUsage(id) {
+  const f = filaments.find(fi=>fi.id===id); if(!f) return;
+  const html = `
+    <div style="text-align:center;padding:8px 16px;font-size:15px;color:var(--secondaryLabel);">当前剩余 <b style="color:var(--label);">${f.remainingWeight}g</b></div>
+    <div class="form-group-inset">
+      <div class="form-row-inset"><span class="f-label">消耗重量</span><input type="number" id="fConsumed" placeholder="克" min="1" max="${f.remainingWeight}" autofocus style="width:70px;"> <span style="font-size:13px;color:var(--secondaryLabel);margin-left:4px;">g</span></div>
+      <div class="form-row-inset"><span class="f-label">模型名称</span><input id="fModel" placeholder="例如：皮卡丘"></div>
+      <div class="form-row-inset"><span class="f-label">日期</span><input type="date" id="fLogDate" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-row-inset"><span class="f-label">备注</span><input id="fLogNotes" placeholder="其他备注"></div>
+    </div>
+  `;
+  showSheet('记录使用', html, ()=>{
+    const consumed = parseInt(document.getElementById('fConsumed').value);
+    if (!consumed||consumed<=0) { toast('请输入消耗克数'); return; }
+    if (consumed > f.remainingWeight) { toast('消耗克数不能超过剩余 ' + f.remainingWeight + 'g'); return; }
+    // 计算本次消耗成本
+    const unitPrice = f.price && f.netWeight ? f.price / f.netWeight : 0;
+    const cost = Math.round(unitPrice * consumed * 100) / 100;
+    const log = {
+      date: document.getElementById('fLogDate').value||new Date().toISOString().split('T')[0],
+      consumedWeight: consumed,
+      cost: cost,
+      modelName: document.getElementById('fModel').value.trim()||null,
+      notes: document.getElementById('fLogNotes').value.trim()||null,
+    };
+    if (!f.usageLogs) f.usageLogs=[];
+    f.usageLogs.push(log);
+    f.remainingWeight = Math.max(0, f.remainingWeight - consumed);
+    saveFilaments(filaments); closeSheet(); toast('已记录'); renderDetail(); renderFilaments();
+  }, '保存');
+}
+
+// ============================================================
+// 事件绑定
+// ============================================================
+document.addEventListener('DOMContentLoaded', ()=>{
+  // 搜索
+  const si = document.getElementById('searchInput'); if(si) {
+    let t; si.addEventListener('input', function(){ clearTimeout(t); t=setTimeout(()=>{ searchQuery=this.value; renderFilaments(); },250); });
+  }
+  // 记录页搜索
+  const rsi = document.getElementById('recordsSearchInput'); if(rsi) {
+    let rt; rsi.addEventListener('input', function(){ clearTimeout(rt); rt=setTimeout(()=>{ renderRecords(); },250); });
+  }
+  // 材质过滤
+  document.getElementById('materialFilters').addEventListener('click', function(e){
+    if (e.target.classList.contains('seg-chip')) {
+      this.querySelectorAll('.seg-chip').forEach(c=>c.classList.remove('active'));
+      e.target.classList.add('active'); matFilter=e.target.dataset.material; renderFilaments();
+    }
+  });
+  // 状态过滤
+  document.getElementById('statusFilters').addEventListener('click', function(e){
+    if (e.target.classList.contains('seg-chip')) {
+      this.querySelectorAll('.seg-chip').forEach(c=>c.classList.remove('active'));
+      e.target.classList.add('active'); statFilter=e.target.dataset.status; renderFilaments();
+    }
+  });
+  // 底部导航
+  document.querySelectorAll('.tab-item').forEach(t=>t.addEventListener('click', function(){ switchTab(this.dataset.tab); }));
+  // FAB
+  document.getElementById('fabAdd').addEventListener('click', ()=>{ if(curTab==='home'||curTab==='filaments') showAddFilament(); });
+  // 搜索按钮
+  document.getElementById('btnSearch').addEventListener('click', ()=>{ switchTab('filaments'); setTimeout(()=>document.getElementById('searchInput').focus(),300); });
+  // 初始
+  renderHome();
+});
+
+// ============================================================
+// 拍照识别模块
+// ============================================================
+
+// 打开相机扫描
+function openCameraScanner() {
+  const el = document.getElementById('cameraContainer');
+  el.innerHTML = `
+    <div class="camera-overlay">
+      <video id="cameraVideo" autoplay playsinline></video>
+      <div class="camera-controls">
+        <button class="cam-btn-close" onclick="closeCamera()">✕</button>
+        <button class="cam-btn" onclick="capturePhoto()"><div class="cam-btn-inner"></div></button>
+        <button class="cam-btn-close" onclick="pickFromGallery()">🖼</button>
+      </div>
+    </div>`;
+  startCamera();
+}
+
+function startCamera() {
+  const video = document.getElementById('cameraVideo');
+  if (!video) return;
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } })
+    .then(function(stream) {
+      video.srcObject = stream;
+      video._stream = stream;
+    })
+    .catch(function(err) {
+      // 如果相机不可用，直接打开文件选择
+      console.log('Camera error:', err.message);
+      closeCamera();
+      pickFromGallery();
+    });
+}
+
+function capturePhoto() {
+  const video = document.getElementById('cameraVideo');
+  if (!video) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+  if (video._stream) {
+    video._stream.getTracks().forEach(function(t) { t.stop(); });
+  }
+  showPreview(dataUrl);
+}
+
+function closeCamera() {
+  const video = document.getElementById('cameraVideo');
+  if (video && video._stream) {
+    video._stream.getTracks().forEach(function(t) { t.stop(); });
+  }
+  document.getElementById('cameraContainer').innerHTML = '';
+}
+
+function pickFromGallery() {
+  closeCamera();
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) { showPreview(ev.target.result); };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function showPreview(dataUrl) {
+  document.getElementById('cameraContainer').innerHTML = `
+    <div class="camera-preview">
+      <img src="${dataUrl}" alt="预览">
+      <div class="preview-controls">
+        <button class="btn btn-secondary" onclick="closeCamera();openCameraScanner();">重拍</button>
+        <button class="btn btn-primary" onclick="processImage('${dataUrl.replace(/'/g,"\\'")}')">使用这张 →</button>
+      </div>
+    </div>`;
+}
+
+function processImage(dataUrl) {
+  closeCamera();
+  closeSheet(); // 先关闭弹窗，等下自动填入
+
+  // 显示处理中
+  var loadEl = document.getElementById('ocrLoadingContainer');
+  loadEl.innerHTML = '<div class="ocr-loading"><div class="ocr-spinner"></div><div class="ocr-text">正在识别...</div></div>';
+
+  // 1. 提取颜色（很快）
+  var colorInfo = extractDominantColor(dataUrl);
+
+  // 2. OCR 识别（较慢）
+  runOCR(dataUrl).then(function(ocrText) {
+    // 3. 解析 OCR 结果
+    var info = parseFilamentInfo(ocrText, colorInfo);
+
+    // 隐藏加载
+    loadEl.innerHTML = '';
+
+    // 重新打开添加表单并填入
+    showAddFilament();
+    setTimeout(function() {
+      applyScanResults(info);
+    }, 500);
+  }).catch(function(err) {
+    loadEl.innerHTML = '';
+    // OCR 失败至少用颜色
+    var info = { color: colorInfo.colorName, colorHex: colorInfo.colorHex };
+    showAddFilament();
+    setTimeout(function() {
+      applyScanResults(info);
+      toast('OCR 识别失败，已自动提取颜色');
+    }, 500);
+  });
+}
+
+// 提取主色调
+function extractDominantColor(dataUrl) {
+  var img = new Image();
+  img.src = dataUrl;
+  var canvas = document.createElement('canvas');
+  var size = 120;
+  canvas.width = size; canvas.height = size;
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, size, size);
+  var imageData = ctx.getImageData(0, 0, size, size);
+  var pixels = imageData.data;
+
+  // 将像素转为 HSL 并做直方图分桶
+  var buckets = {};
+  var edgePixels = []; // 边缘区域像素（耗材通常在边缘可见）
+
+  for (var y = 0; y < size; y++) {
+    for (var x = 0; x < size; x++) {
+      var i = (y * size + x) * 4;
+      var r = pixels[i], g = pixels[i+1], b = pixels[i+2];
+      var hsl = rgbToHsl(r, g, b);
+
+      // 跳过极暗和极亮
+      if (hsl.l < 0.08 || hsl.l > 0.92) continue;
+      // 跳过太灰的颜色
+      if (hsl.s < 0.06) continue;
+
+      // 边缘区域权重更高（距边缘 30% 以内）
+      var cx = Math.min(x, size - 1 - x) / size;
+      var cy = Math.min(y, size - 1 - y) / size;
+      var edgeWeight = 1 + Math.max(0, 0.3 - Math.min(cx, cy)) * 3;
+
+      // 色相分桶（12 个桶）
+      var hueBucket = Math.floor(hsl.h * 12) % 12;
+      var satBucket = hsl.s > 0.3 ? 'vivid' : 'mild';
+      var key = hueBucket + '_' + satBucket;
+
+      if (!buckets[key]) buckets[key] = { count: 0, r: 0, g: 0, b: 0, h: 0, s: 0, l: 0 };
+      buckets[key].count += edgeWeight;
+      buckets[key].r += r * edgeWeight;
+      buckets[key].g += g * edgeWeight;
+      buckets[key].b += b * edgeWeight;
+    }
+  }
+
+  // 找颜色最多的桶
+  var bestBucket = null;
+  var bestCount = 0;
+  for (var k in buckets) {
+    if (buckets[k].count > bestCount) {
+      bestCount = buckets[k].count;
+      bestBucket = buckets[k];
+    }
+  }
+
+  var r, g, b;
+  if (bestBucket && bestBucket.count > 0) {
+    r = Math.round(bestBucket.r / bestBucket.count);
+    g = Math.round(bestBucket.g / bestBucket.count);
+    b = Math.round(bestBucket.b / bestBucket.count);
+  } else {
+    // 没找到则取最鲜艳的像素
+    r = 180; g = 180; b = 180;
+    var bestS = 0;
+    for (var yy = 0; yy < size; yy++) {
+      for (var xx = 0; xx < size; xx++) {
+        var ii = (yy * size + xx) * 4;
+        var hsl2 = rgbToHsl(pixels[ii], pixels[ii+1], pixels[ii+2]);
+        if (hsl2.s > bestS && hsl2.l > 0.1 && hsl2.l < 0.9) {
+          bestS = hsl2.s;
+          r = pixels[ii]; g = pixels[ii+1]; b = pixels[ii+2];
+        }
+      }
+    }
+  }
+
+  var hex = '#' + [r,g,b].map(function(c){ return Math.min(255,Math.max(0,c)).toString(16).padStart(2,'0'); }).join('');
+  var colorName = mapColorToName(r, g, b);
+
+  return { colorName: colorName, colorHex: hex, r: r, g: g, b: b };
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  var max = Math.max(r, g, b), min = Math.min(r, g, b);
+  var h = 0, s = 0, l = (max + min) / 2;
+  if (max !== min) {
+    var d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  return { h: h, s: s, l: l };
+}
+
+function mapColorToName(r, g, b) {
+  var hsl = rgbToHsl(r, g, b);
+
+  // 太暗/太亮直接判断
+  if (hsl.l < 0.12) return '黑色';
+  if (hsl.l > 0.92) return '白色';
+  if (hsl.s < 0.08) {
+    if (hsl.l < 0.35) return '深灰';
+    if (hsl.l < 0.65) return '灰色';
+    return '浅灰';
+  }
+
+  // 基于 HSL 色相判断颜色
+  var h = hsl.h * 360;
+  var s = hsl.s;
+  var l = hsl.l;
+
+  // 艳色判断
+  if (s > 0.25) {
+    if (h < 12 || h >= 345) return l < 0.4 ? '深红' : '红色';
+    if (h < 25) return l < 0.4 ? '橙红' : '橙色';
+    if (h < 42) return l < 0.4 ? '棕色' : '橙色';
+    if (h < 65) return l < 0.4 ? '棕色' : '金色';
+    if (h < 80) return l < 0.45 ? '橄榄' : '黄色';
+    if (h < 150) return l < 0.35 ? '深绿' : '绿色';
+    if (h < 180) return l < 0.35 ? '墨绿' : '青色';
+    if (h < 210) return l < 0.35 ? '深蓝' : '青色';
+    if (h < 250) return l < 0.35 ? '深蓝' : '蓝色';
+    if (h < 280) return l < 0.35 ? '深紫' : '紫色';
+    if (h < 320) return l < 0.35 ? '深粉' : '粉色';
+    if (h < 345) return l < 0.35 ? '玫瑰红' : '粉色';
+  }
+
+  // 淡色判断
+  if (h < 25) return l < 0.5 ? '暗红' : '浅红';
+  if (h < 65) return l < 0.5 ? '暗金' : '浅黄';
+  if (h < 150) return l < 0.5 ? '暗绿' : '浅绿';
+  if (h < 210) return l < 0.5 ? '暗青' : '浅蓝';
+  if (h < 280) return l < 0.5 ? '暗紫' : '浅紫';
+  if (h < 345) return l < 0.5 ? '暗粉' : '浅粉';
+
+  return '';
+}
+
+// OCR 识别
+function runOCR(dataUrl) {
+  if (typeof Tesseract === 'undefined') {
+    return Promise.reject(new Error('Tesseract not loaded'));
+  }
+  return Tesseract.recognize(dataUrl, 'chi_sim+eng', {}).then(function(result) {
+    return result.data.text;
+  });
+}
+
+// 解析 OCR 文字，提取耗材信息
+function parseFilamentInfo(ocrText, colorInfo) {
+  var result = {
+    color: colorInfo ? colorInfo.colorName : '',
+    colorHex: colorInfo ? colorInfo.colorHex : '#ccc',
+    brand: '',
+    material: '',
+    nozzleTemp: '',
+    bedTemp: '',
+    notes: '',
+  };
+
+  if (!ocrText) return result;
+  var text = ocrText.toLowerCase();
+
+  // 材质识别
+  var matMap = {
+    'pla silk': 'PLA Silk', 'silk pla': 'PLA Silk',
+    'pla matte': 'PLA Matte', 'matte pla': 'PLA Matte',
+    'pla wood': 'PLA 木质', 'wood pla': 'PLA 木质', '木质': '木质填充',
+    'pla marble': 'PLA 大理石', 'marble pla': 'PLA 大理石',
+    'pla-cf': 'PLA-CF', 'pla cf': 'PLA-CF', 'carbon fiber pla': 'PLA-CF',
+    'pla pro': 'PLA+', 'pla plus': 'PLA+', 'pla+': 'PLA+', 'pla': 'PLA',
+    'abs+': 'ABS+', 'abs': 'ABS',
+    'petg-cf': 'PETG-CF', 'petg cf': 'PETG-CF', 'petg': 'PETG', 'pet': 'PETG',
+    'tpu 95a': 'TPU 95A', 'tpu 85a': 'TPU 85A', 'tpe': 'TPE', 'tpu': 'TPU',
+    'pc/abs': 'PC/ABS合金', 'pc abs': 'PC/ABS合金',
+    'polycarbonate': 'PC', 'pc': 'PC',
+    'nylon': '尼龙', 'pa6': 'PA6', 'pa12': 'PA12', 'pa-cf': 'PA-CF', 'pa-gf': 'PA-GF', '尼龙': '尼龙',
+    'asa': 'ASA',
+    'hips': 'HIPS',
+    'pva': 'PVA',
+    'pp': 'PP',
+    'pctg': 'PCTG',
+    'pei': 'PEI', 'ultem': 'PEI',
+    'peek': 'PEEK',
+    'pekk': 'PEKK',
+    'ppsu': 'PPSU',
+    'metal': '金属填充',
+  };
+  for (var key in matMap) {
+    if (text.indexOf(key) !== -1) {
+      result.material = matMap[key];
+      break;
+    }
+  }
+
+  // 品牌识别
+  var brands = ['esun', 'bambu', 'bambulab', 'polymaker', 'sunlu', 'jayog', 'anycubic',
+    'creality', 'overture', 'hatchbox', 'prusament', 'eryone', 'giantarm', 'geeetech',
+    'nova', 'kexcelled', 'formfutura', 'fillamentum', '3djake', 'tinmorry',
+    '兰博', '易生', '金运', '闪铸'];
+  for (var i = 0; i < brands.length; i++) {
+    if (text.indexOf(brands[i]) !== -1) {
+      result.brand = brands[i].charAt(0).toUpperCase() + brands[i].slice(1);
+      break;
+    }
+  }
+
+  // 喷嘴温度 — 匹配各种格式
+  var nzPatterns = [
+    /nozzle\s*temp[:\s]*(\d{2,3})\s*[-–—to至到]+\s*(\d{2,3})/i,
+    /nozzle[:\s]*(\d{2,3})\s*[-–—]+\s*(\d{2,3})/i,
+    /喷嘴[温度:\s]*(\d{2,3})\s*[-–—至到]+\s*(\d{2,3})/,
+    /打印温度[:\s]*(\d{2,3})\s*[-–—至到]+\s*(\d{2,3})/,
+    /(\d{3})\s*[-–—to至到]+\s*(\d{3})\s*[℃c°]/,
+    /(\d{3})\s*[-–—]+\s*(\d{3})\s*[℃c°]/,
+  ];
+  for (var ni = 0; ni < nzPatterns.length; ni++) {
+    var m = ocrText.match(nzPatterns[ni]);
+    if (m) { result.nozzleTemp = m[1] + '-' + m[2]; break; }
+  }
+  // 单值喷嘴温度（如 200℃）
+  if (!result.nozzleTemp) {
+    var nzSingle = ocrText.match(/(?:nozzle|喷嘴|打印温度)[:\s]*(\d{2,3})\s*[℃c°]/i);
+    if (nzSingle) result.nozzleTemp = nzSingle[1];
+  }
+
+  // 热床温度 — 匹配各种格式（范围 + 单值）
+  var bedPatterns = [
+    /bed\s*temp[:\s]*(\d{2,3})\s*[-–—to至到]+\s*(\d{2,3})/i,
+    /bed[:\s]*(\d{2,3})\s*[-–—]+\s*(\d{2,3})/i,
+    /bed[:\s]*(\d{2,3})\s*[℃c°]/i,
+    /热床[温度:\s]*(\d{2,3})\s*[-–—至到]+\s*(\d{2,3})/,
+    /热床[温度:\s]*(\d{2,3})\s*[℃c°]/,
+    /平台[温度:\s]*(\d{2,3})\s*[-–—至到]+\s*(\d{2,3})/,
+    /平台[温度:\s]*(\d{2,3})\s*[℃c°]/,
+    /build\s*plate[:\s]*(\d{2,3})\s*[-–—]+\s*(\d{2,3})/i,
+    /build\s*plate[:\s]*(\d{2,3})\s*[℃c°]/i,
+    /heat\s*bed[:\s]*(\d{2,3})\s*[-–—]+\s*(\d{2,3})/i,
+    /heat\s*bed[:\s]*(\d{2,3})\s*[℃c°]/i,
+  ];
+  for (var bi = 0; bi < bedPatterns.length; bi++) {
+    var bm = ocrText.match(bedPatterns[bi]);
+    if (bm) {
+      result.bedTemp = bm[2] ? bm[1] + '-' + bm[2] : bm[1];
+      break;
+    }
+  }
+  // 如果 OCR 没识别到热床，但识别到了喷嘴温度，尝试从附近提取热床
+  if (!result.bedTemp && result.nozzleTemp) {
+    // 查找 50-70 范围的温度（常见热床温度）
+    var bedFallback = ocrText.match(/(?:^|\n|\.)\s*(\d{2})\s*[℃c°]/g);
+    if (bedFallback) {
+      for (var bfi = 0; bfi < bedFallback.length; bfi++) {
+        var val = parseInt(bedFallback[bfi].match(/(\d+)/)[1]);
+        if (val >= 40 && val <= 120 && val !== parseInt(result.nozzleTemp)) {
+          result.bedTemp = String(val);
+          break;
+        }
+      }
+    }
+  }
+
+  // 线径
+  if (text.indexOf('1.75') !== -1) result.notes = '线径 1.75mm';
+  if (text.indexOf('2.85') !== -1) result.notes = '线径 2.85mm';
+
+  return result;
+}
+
+// 将识别结果填入表单
+function applyScanResults(info) {
+  if (!info) return;
+  if (info.color) {
+    var cEl = document.getElementById('fColor');
+    if (cEl) cEl.value = info.color;
+  }
+  if (info.colorHex) {
+    var pEl = document.getElementById('colorPreview');
+    if (pEl) pEl.style.background = info.colorHex;
+  }
+  if (info.brand) {
+    var bEl = document.getElementById('fBrand');
+    if (bEl) bEl.value = info.brand;
+  }
+  if (info.material) {
+    var mEl = document.getElementById('fMaterial');
+    if (mEl) {
+      // 匹配材质选项
+      for (var i = 0; i < mEl.options.length; i++) {
+        if (mEl.options[i].value.toLowerCase() === info.material.toLowerCase()) {
+          mEl.value = mEl.options[i].value;
+          break;
+        }
+      }
+    }
+  }
+  if (info.nozzleTemp) {
+    var nEl = document.getElementById('fNozzle');
+    if (nEl) nEl.value = info.nozzleTemp;
+  }
+  if (info.bedTemp) {
+    var bdEl = document.getElementById('fBed');
+    if (bdEl) bdEl.value = info.bedTemp;
+  }
+  if (info.notes) {
+    var ntEl = document.getElementById('fNotes');
+    if (ntEl) ntEl.value = info.notes;
+  }
+
+  // 高亮提示
+  var filled = [];
+  if (info.brand) filled.push('品牌');
+  if (info.color) filled.push('颜色');
+  if (info.material) filled.push('材质');
+  if (filled.length > 0) {
+    toast('✅ 已识别：' + filled.join('、'));
+  }
+}
+
+// Service Worker
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+<!-- ========== 拍照识别 ========== -->
+<div id="cameraContainer"></div>
+<div id="ocrLoadingContainer"></div>
+
+</body>
+</html>
